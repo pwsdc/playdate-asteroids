@@ -1,0 +1,13 @@
+# whitelist system
+
+# ignore everything
+/*
+
+# except these:
+!/.vscode
+!/.vscode/*
+!/source
+!/source/*
+!/.gitignore
+!/LICENSE
+!/README.*
