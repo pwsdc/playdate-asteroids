@@ -2,7 +2,11 @@
 
 local gfx <const> = playdate.graphics
 
--- create projectile that player shoots
+-- create ship
+local shipImage <const> = gfx.image.new("img/ship")
+local shipSprite <const> = gfx.sprite.new(shipImage)
+
+-- create projectile that ship shoots
 local projectileImage <const> = gfx.image.new(5, 5, gfx.kColorBlack)
 local projectileSprite <const> = gfx.sprite.new(projectileImage)
 local isProjectileFired = false
@@ -118,6 +122,12 @@ function titleScreenLogic()
     end
 end
 
+function drawBase()
+    -- add ship to center of screen
+    shipSprite:moveTo(200, 120)
+    shipSprite:add()
+end
+
 -- Loads saved data
 local gameData = playdate.datastore.read()
 if gameData ~= nil then
@@ -138,10 +148,8 @@ function playdate.update()
         return
     end
 
-    -- this is the playing state, replace this with the actual game
-    gfx.drawText("Hello World!", 170, 110)
-
     if gameState == start then
+        drawBase()
         gameState = playing
 
         return -- not necessary, but allows cleaner code below (and doesn't cost much)
