@@ -128,10 +128,17 @@ function drawBase()
     shipSprite:add()
 end
 
-function rotateBase(angle)
-    -- rotate ship sprite to angle in degrees clockwise
-    -- see https://sdk.play.date/2.5.0/Inside%20Playdate.html#m-graphics.sprite.setRotation
-    shipSprite:setRotation(angle)
+function rotateShip()
+    -- following if statement is for ship rotation
+    if gameState == playing then
+        -- see https://sdk.play.date/2.5.0/Inside%20Playdate.html#f-getCrankChange
+        local crankChange = playdate.getCrankChange()
+        -- see https://sdk.play.date/2.5.0/Inside%20Playdate.html#m-graphics.sprite.getRotation
+        local currentRotation = shipSprite:getRotation()
+        -- rotate ship sprite to angle in degrees clockwise
+        -- see https://sdk.play.date/2.5.0/Inside%20Playdate.html#m-graphics.sprite.setRotation
+        shipSprite:setRotation(currentRotation + crankChange)
+    end
 end
 
 -- Loads saved data
@@ -148,7 +155,7 @@ function playdate.crankDocked()
     -- if the PlayDate crank is docked, and the state is playing, 
     -- then reset the rotation of the ship
     if gameState == playing then
-        rotateBase(0)
+        shipSprite:setRotation(0)
     end
 end
 
@@ -171,17 +178,5 @@ function playdate.update()
         return -- not necessary, but allows cleaner code below (and doesn't cost much)
     end
 
-    -- following if statement is for ship rotation
-    if gameState == playing then
-        -- get the change in rotation of the crank
-        -- see https://sdk.play.date/2.5.0/Inside%20Playdate.html#f-getCrankChange
-        local crankChange = playdate.getCrankChange()
-        -- get the current rotation of the ship sprite
-        -- see https://sdk.play.date/2.5.0/Inside%20Playdate.html#m-graphics.sprite.getRotation
-        local currentRotation = shipSprite:getRotation()
-
-        -- rotate ship based on crank change and current rotation
-        -- positive is clockwise, negative is counterclockwise
-        rotateBase(currentRotation + crankChange)
-    end
+    rotateShip()
 end
