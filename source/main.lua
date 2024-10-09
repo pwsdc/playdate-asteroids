@@ -1,6 +1,7 @@
 -- Playdate Asteroids
 
-local gfx <const> = playdate.graphics
+local pd <const> = playdate
+local gfx <const> = pd.graphics
 
 -- create ship
 local shipImage <const> = gfx.image.new("img/ship")
@@ -20,10 +21,15 @@ local name = "AAA"
 local nameLetters = { "A", "A", "A" }
 local nameIndex = 1
 
--- better scheme for tracking gamestate
--- 0 for normal gameplay, 1 for pause, 2 for loss
-local playing <const>, paused <const>, lost <const>, title <const>, start <const> = 0, 1, 2, 3, 4
-local gameState = title
+
+local states = {
+    ["playing"] = gameplay,
+    ["paused"] = pause_menu,
+    ["lost"] = lose_screen,
+    ["title"] = title_screen,
+    ["start"] = start
+}
+local gameState = "title"
 
 function saveGameData()
     -- save high score leaderboard
@@ -32,18 +38,18 @@ function saveGameData()
     }
 
     -- Serialize game data table into the datastore
-    playdate.datastore.write(gameData)
+    pd.datastore.write(gameData)
 end
 
 -- Automatically save game data when the player chooses
 -- to exit the game via the System Menu or Menu button
-function playdate.gameWillTerminate()
+function pd.gameWillTerminate()
     saveGameData()
 end
 
 -- Automatically save game data when the device goes
 -- to low-power sleep mode because of a low battery
-function playdate.gameWillSleep()
+function pd.gameWillSleep()
     saveGameData()
 end
 
@@ -94,29 +100,29 @@ function titleScreenLogic()
     drawTitle()
 
     -- switch between char positions in name
-    if playdate.buttonJustPressed(playdate.kButtonLeft) and nameIndex > 1 then
+    if pd.buttonJustPressed(pd.kButtonLeft) and nameIndex > 1 then
         nameIndex -= 1
     end
-    if playdate.buttonJustPressed(playdate.kButtonRight) and nameIndex < 3 then
+    if pd.buttonJustPressed(pd.kButtonRight) and nameIndex < 3 then
         nameIndex += 1
     end
 
     -- update the actual character
-    if playdate.buttonJustPressed(playdate.kButtonUp) then
+    if pd.buttonJustPressed(pd.kButtonUp) then
         changeLetter(nameIndex, true)
-    elseif playdate.buttonJustPressed(playdate.kButtonDown) then
+    elseif pd.buttonJustPressed(pd.kButtonDown) then
         changeLetter(nameIndex, false)
     end
 
     -- form name from character
     name = nameLetters[1] .. nameLetters[2] .. nameLetters[3]
 
-    if playdate.buttonJustPressed(playdate.kButtonA) then
-        gameState = start
+    if pd.buttonJustPressed(pd.kButtonA) then
+        gameState = "start"
     end
 
     -- reset scores by pressing Up and B at same time
-    if playdate.buttonJustPressed(playdate.kButtonUp) and playdate.buttonJustPressed(playdate.kButtonB) then
+    if pd.buttonJustPressed(pd.kButtonUp) and pd.buttonJustPressed(pd.kButtonB) then
         highestScores = {}
         highestScoresLength = 0
     end
@@ -129,13 +135,13 @@ function drawBase()
 end
 
 function rotateShip(speed)
-    if not playdate.isCrankDocked() then
-        shipSprite:setRotation(playdate.getCrankPosition())
+    if not pd.isCrankDocked() then
+        shipSprite:setRotation(pd.getCrankPosition())
     else
-        if playdate.buttonIsPressed(playdate.kButtonLeft) then
+        if pd.buttonIsPressed(pd.kButtonLeft) then
             -- rotate ship left
             shipSprite:setRotation(shipSprite:getRotation() - speed)
-        elseif playdate.buttonIsPressed(playdate.kButtonRight) then
+        elseif pd.buttonIsPressed(pd.kButtonRight) then
             -- rotate ship right
             shipSprite:setRotation(shipSprite:getRotation() + speed)
         end
@@ -150,9 +156,9 @@ function moveShip(speed)
 
     -- if the up button is pressed, move the ship in the direction it's pointing
     -- (down goes in the opposite direction)
-    if playdate.buttonIsPressed(playdate.kButtonUp) then
+    if pd.buttonIsPressed(pd.kButtonUp) then
         shipSprite:moveBy(x_travel, y_travel)
-    elseif playdate.buttonIsPressed(playdate.kButtonDown) then
+    elseif pd.buttonIsPressed(pd.kButtonDown) then
         shipSprite:moveBy(-x_travel, -y_travel)
     end
 
@@ -166,42 +172,53 @@ function moveShip(speed)
 end
 
 -- Loads saved data
-local gameData = playdate.datastore.read()
+local gameData = pd.datastore.read()
 if gameData ~= nil then
     highestScores = gameData.currentHighestScores
 else
     highestScores = {}
 end
 
--- a callback function that is called when the crank is docked
--- see https://sdk.play.date/2.5.0/Inside%20Playdate.html#c-crankDocked
-function playdate.crankDocked()
-    -- if the PlayDate crank is docked, and the state is playing, 
-    -- then reset the rotation of the ship
-    if gameState == playing then
-        shipSprite:setRotation(0)
-    end
+
+--------------------------- update---------------------------
+
+function pd.update()
+    -- run the corresponding function of the current state
+    local func = states[gameState]
+    func()
 end
 
-function playdate.update()
-    -- refresh screen
-    if gameState ~= lost then
-        gfx.sprite.update()
-    end
-    
-    -- title screen
-    if gameState == title then
-        titleScreenLogic()
-        return
-    end
+function gameplay()
+    -- refresh the screen
+    gfx.sprite.update()
 
-    if gameState == start then
-        drawBase()
-        gameState = playing
-
-        return -- not necessary, but allows cleaner code below (and doesn't cost much)
-    end
-
+    -- player movement
     rotateShip(7)
     moveShip(5)
+end
+
+
+
+function pause_menu()
+end
+
+
+
+function lose_screen()
+end
+
+
+
+function title_screen()
+    titleScreenLogic()
+end
+
+
+
+function start()
+    -- draw the basic elements to the screen
+    drawBase()
+
+    -- set the game state
+    gameState = "playing"
 end
