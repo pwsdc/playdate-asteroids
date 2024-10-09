@@ -107,6 +107,8 @@ function gameplay()
     moveShip(5)
 end
 
+-- ship angle = crank angle when undocked,
+-- otherwise use d-pad left/right to rotate
 function rotateShip(speed)
     if not pd.isCrankDocked() then
         shipSprite:setRotation(pd.getCrankPosition())
@@ -167,6 +169,7 @@ function titleScreen()
 
     updateName()
 
+    -- start the game once up is pressed
     if pd.buttonJustPressed(pd.kButtonA) then
         gameState = "start"
     end
