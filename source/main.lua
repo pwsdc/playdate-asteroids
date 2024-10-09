@@ -157,11 +157,12 @@ function moveShip(speed)
     end
 
     -- wraps the ship around (left/right and top/bottom)
-    local x, y = shipSprite:getCenter()
-    if x < -10 then shipSprite:moveTo(409, y) end
-    if x > 410 then shipSprite:moveTo(-9, y) end
-    if y < -10 then shipSprite:moveTo(x, 249) end
-    if y > 250 then shipSprite:moveTo(x, -9) end
+    local x, y = shipSprite:getPosition()
+    local pad = 20
+    if x < -pad then shipSprite:moveTo(400+pad-1, y) end
+    if x > 400+pad then shipSprite:moveTo(0-pad+1, y) end
+    if y < -pad then shipSprite:moveTo(x, 240+pad-1) end
+    if y > 240+pad then shipSprite:moveTo(x, 0-pad+1) end
 end
 
 -- Loads saved data
