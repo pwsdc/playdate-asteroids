@@ -108,10 +108,7 @@ function changeLetter(num, forwards)
     end
 end
 
--- displays title screen, lets player change name, lets players start game
-function titleScreenLogic()
-    drawTitle()
-
+function handle_name()
     -- switch between char positions in name
     if pd.buttonJustPressed(pd.kButtonLeft) and nameIndex > 1 then
         nameIndex -= 1
@@ -129,16 +126,6 @@ function titleScreenLogic()
 
     -- form name from character
     name = nameLetters[1] .. nameLetters[2] .. nameLetters[3]
-
-    if pd.buttonJustPressed(pd.kButtonA) then
-        gameState = "start"
-    end
-
-    -- reset scores by pressing Up and B at same time
-    if pd.buttonJustPressed(pd.kButtonUp) and pd.buttonJustPressed(pd.kButtonB) then
-        highestScores = {}
-        highestScoresLength = 0
-    end
 end
 
 function drawBase()
@@ -218,7 +205,19 @@ end
 
 
 function title_screen()
-    titleScreenLogic()
+    drawTitle()
+
+    handle_name()
+
+    if pd.buttonJustPressed(pd.kButtonA) then
+        gameState = "start"
+    end
+
+    -- reset scores by pressing Up and B at same time
+    if pd.buttonJustPressed(pd.kButtonUp) and pd.buttonJustPressed(pd.kButtonB) then
+        highestScores = {}
+        highestScoresLength = 0
+    end
 end
 
 
