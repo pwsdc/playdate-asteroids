@@ -26,11 +26,11 @@ local nameIndex = 1
 -- game states
 local gameState = "title"
 local states = {
-    ["playing"] = gameplay,
-    ["paused"] = pauseMenu,
-    ["lost"] = loseScreen,
-    ["title"] = titleScreen,
-    ["start"] = start
+    ["playing"] = function () gameplay() end,
+    ["paused"] = function () pauseMenu() end,
+    ["lost"] = function () loseScreen() end,
+    ["title"] = function () titleScreen() end,
+    ["start"] = function () start() end,
 }
 
 
@@ -73,8 +73,7 @@ end
 
 function pd.update()
     -- run the corresponding function of the current state
-    local func = states[gameState]
-    func()
+    states[gameState]()
 end
 
 
