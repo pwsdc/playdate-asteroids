@@ -24,9 +24,9 @@ local nameIndex = 1
 local gameState = "title"
 local states = {
     ["playing"] = gameplay,
-    ["paused"] = pause_menu,
-    ["lost"] = lose_screen,
-    ["title"] = title_screen,
+    ["paused"] = pauseMenu,
+    ["lost"] = loseScreen,
+    ["title"] = titleScreen,
     ["start"] = start
 }
 
@@ -41,6 +41,7 @@ else
     highestScores = {}
 end
 
+-- saves game data
 function saveGameData()
     -- save high score leaderboard
     local gameData = {
@@ -64,7 +65,7 @@ function pd.gameWillSleep()
 end
 
 
---------------------------- written functions ---------------------------
+--------------------------- non-core functions ---------------------------
 
 function drawTitle()
     local yStart = 50
@@ -90,6 +91,7 @@ function drawTitle()
     gfx.drawText("Press A to Start", 144, 220)
 end
 
+-- changes a specific letter in the player's 3-character name
 function changeLetter(num, forwards)
     -- whether to increment or decrement the character
     local changeBy = -1
@@ -108,7 +110,8 @@ function changeLetter(num, forwards)
     end
 end
 
-function handle_name()
+-- allows the player to move between and change each name character
+function updateName()
     -- switch between char positions in name
     if pd.buttonJustPressed(pd.kButtonLeft) and nameIndex > 1 then
         nameIndex -= 1
@@ -128,7 +131,7 @@ function handle_name()
     name = nameLetters[1] .. nameLetters[2] .. nameLetters[3]
 end
 
-function drawBase()
+function spriteSetup()
     -- add ship to center of screen
     shipSprite:moveTo(200, 120)
     shipSprite:add()
@@ -164,7 +167,7 @@ function moveShip(speed)
 
     -- wraps the ship around (left/right and top/bottom)
     local x, y = shipSprite:getPosition()
-    local pad = 20
+    local pad = 20 -- allow the ship to be fully off screen before wrapping
     if x < -pad then shipSprite:moveTo(400+pad-1, y) end
     if x > 400+pad then shipSprite:moveTo(0-pad+1, y) end
     if y < -pad then shipSprite:moveTo(x, 240+pad-1) end
@@ -183,6 +186,7 @@ end
 
 --------------------------- state functions ---------------------------
 
+-- the main gameplay loop
 function gameplay()
     -- refresh the screen
     gfx.sprite.update()
@@ -194,20 +198,20 @@ end
 
 
 
-function pause_menu()
+function pauseMenu()
 end
 
 
 
-function lose_screen()
+function loseScreen()
 end
 
 
 
-function title_screen()
+function titleScreen()
     drawTitle()
 
-    handle_name()
+    updateName()
 
     if pd.buttonJustPressed(pd.kButtonA) then
         gameState = "start"
@@ -221,10 +225,10 @@ function title_screen()
 end
 
 
-
+-- first function that is called; mainly for setup
 function start()
-    -- draw the basic elements to the screen
-    drawBase()
+    -- put the sprites on the screen
+    spriteSetup()
 
     -- set the game state
     gameState = "playing"
