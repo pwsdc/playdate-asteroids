@@ -193,6 +193,9 @@ function pd.update()
     func()
 end
 
+
+--------------------------- state functions ---------------------------
+
 function gameplay()
     -- refresh the screen
     gfx.sprite.update()
