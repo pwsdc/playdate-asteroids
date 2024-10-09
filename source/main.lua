@@ -21,7 +21,7 @@ local name = "AAA"
 local nameLetters = { "A", "A", "A" }
 local nameIndex = 1
 
-
+local gameState = "title"
 local states = {
     ["playing"] = gameplay,
     ["paused"] = pause_menu,
@@ -29,7 +29,17 @@ local states = {
     ["title"] = title_screen,
     ["start"] = start
 }
-local gameState = "title"
+
+
+--------------------------- misc. playdate things ---------------------------
+
+-- Loads saved data
+local gameData = pd.datastore.read()
+if gameData ~= nil then
+    highestScores = gameData.currentHighestScores
+else
+    highestScores = {}
+end
 
 function saveGameData()
     -- save high score leaderboard
@@ -52,6 +62,9 @@ end
 function pd.gameWillSleep()
     saveGameData()
 end
+
+
+--------------------------- written functions ---------------------------
 
 function drawTitle()
     local yStart = 50
@@ -95,7 +108,7 @@ function changeLetter(num, forwards)
     end
 end
 
--- displays title screen, lets player change name, lets players tart game
+-- displays title screen, lets player change name, lets players start game
 function titleScreenLogic()
     drawTitle()
 
@@ -171,16 +184,8 @@ function moveShip(speed)
     if y > 240+pad then shipSprite:moveTo(x, 0-pad+1) end
 end
 
--- Loads saved data
-local gameData = pd.datastore.read()
-if gameData ~= nil then
-    highestScores = gameData.currentHighestScores
-else
-    highestScores = {}
-end
 
-
---------------------------- update---------------------------
+--------------------------- update ---------------------------
 
 function pd.update()
     -- run the corresponding function of the current state
