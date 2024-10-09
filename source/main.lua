@@ -65,7 +65,116 @@ function pd.gameWillSleep()
 end
 
 
---------------------------- non-core functions ---------------------------
+
+--------------------------- update ---------------------------
+
+function pd.update()
+    -- run the corresponding function of the current state
+    local func = states[gameState]
+    func()
+end
+
+
+
+--------------------------- start ---------------------------
+
+function start()
+    -- put the sprites on the screen
+    spriteSetup()
+
+    -- set the game state
+    gameState = "playing"
+end
+
+function spriteSetup()
+    -- add ship to center of screen
+    shipSprite:moveTo(200, 120)
+    shipSprite:add()
+end
+
+
+
+--------------------------- gameplay ---------------------------
+
+function gameplay()
+    -- refresh the screen
+    gfx.sprite.update()
+
+    -- player movement
+    rotateShip(7)
+    moveShip(5)
+end
+
+function rotateShip(speed)
+    if not pd.isCrankDocked() then
+        shipSprite:setRotation(pd.getCrankPosition())
+    else
+        if pd.buttonIsPressed(pd.kButtonLeft) then
+            -- rotate ship left
+            shipSprite:setRotation(shipSprite:getRotation() - speed)
+        elseif pd.buttonIsPressed(pd.kButtonRight) then
+            -- rotate ship right
+            shipSprite:setRotation(shipSprite:getRotation() + speed)
+        end
+    end
+end
+
+-- moves the ship in the direction it's pointing whenever the up key is pressed
+function moveShip(speed)
+    -- (directions are swapped because 0 degrees is straight up)
+    local x_travel = math.sin(math.rad(shipSprite:getRotation())) * speed
+    local y_travel = -math.cos(math.rad(shipSprite:getRotation())) * speed
+
+    -- if the up button is pressed, move the ship in the direction it's pointing
+    -- (down goes in the opposite direction)
+    if pd.buttonIsPressed(pd.kButtonUp) then
+        shipSprite:moveBy(x_travel, y_travel)
+    elseif pd.buttonIsPressed(pd.kButtonDown) then
+        shipSprite:moveBy(-x_travel, -y_travel)
+    end
+
+    -- wraps the ship around (left/right and top/bottom)
+    local x, y = shipSprite:getPosition()
+    local pad = 20 -- allow the ship to be fully off screen before wrapping
+    if x < -pad then shipSprite:moveTo(400+pad-1, y) end
+    if x > 400+pad then shipSprite:moveTo(0-pad+1, y) end
+    if y < -pad then shipSprite:moveTo(x, 240+pad-1) end
+    if y > 240+pad then shipSprite:moveTo(x, 0-pad+1) end
+end
+
+
+
+--------------------------- pause menu ---------------------------
+
+function pauseMenu()
+end
+
+
+
+--------------------------- lose screen ---------------------------
+
+function loseScreen()
+end
+
+
+
+--------------------------- title screen ---------------------------
+
+function titleScreen()
+    drawTitle()
+
+    updateName()
+
+    if pd.buttonJustPressed(pd.kButtonA) then
+        gameState = "start"
+    end
+
+    -- reset scores by pressing Up and B at same time
+    if pd.buttonJustPressed(pd.kButtonUp) and pd.buttonJustPressed(pd.kButtonB) then
+        highestScores = {}
+        highestScoresLength = 0
+    end
+end
 
 function drawTitle()
     local yStart = 50
@@ -129,107 +238,4 @@ function updateName()
 
     -- form name from character
     name = nameLetters[1] .. nameLetters[2] .. nameLetters[3]
-end
-
-function spriteSetup()
-    -- add ship to center of screen
-    shipSprite:moveTo(200, 120)
-    shipSprite:add()
-end
-
-function rotateShip(speed)
-    if not pd.isCrankDocked() then
-        shipSprite:setRotation(pd.getCrankPosition())
-    else
-        if pd.buttonIsPressed(pd.kButtonLeft) then
-            -- rotate ship left
-            shipSprite:setRotation(shipSprite:getRotation() - speed)
-        elseif pd.buttonIsPressed(pd.kButtonRight) then
-            -- rotate ship right
-            shipSprite:setRotation(shipSprite:getRotation() + speed)
-        end
-    end
-end
-
--- moves the ship in the direction it's pointing whenever the up key is pressed
-function moveShip(speed)
-    -- (directions are swapped because 0 degrees is straight up)
-    local x_travel = math.sin(math.rad(shipSprite:getRotation())) * speed
-    local y_travel = -math.cos(math.rad(shipSprite:getRotation())) * speed
-
-    -- if the up button is pressed, move the ship in the direction it's pointing
-    -- (down goes in the opposite direction)
-    if pd.buttonIsPressed(pd.kButtonUp) then
-        shipSprite:moveBy(x_travel, y_travel)
-    elseif pd.buttonIsPressed(pd.kButtonDown) then
-        shipSprite:moveBy(-x_travel, -y_travel)
-    end
-
-    -- wraps the ship around (left/right and top/bottom)
-    local x, y = shipSprite:getPosition()
-    local pad = 20 -- allow the ship to be fully off screen before wrapping
-    if x < -pad then shipSprite:moveTo(400+pad-1, y) end
-    if x > 400+pad then shipSprite:moveTo(0-pad+1, y) end
-    if y < -pad then shipSprite:moveTo(x, 240+pad-1) end
-    if y > 240+pad then shipSprite:moveTo(x, 0-pad+1) end
-end
-
-
---------------------------- update ---------------------------
-
-function pd.update()
-    -- run the corresponding function of the current state
-    local func = states[gameState]
-    func()
-end
-
-
---------------------------- state functions ---------------------------
-
--- the main gameplay loop
-function gameplay()
-    -- refresh the screen
-    gfx.sprite.update()
-
-    -- player movement
-    rotateShip(7)
-    moveShip(5)
-end
-
-
-
-function pauseMenu()
-end
-
-
-
-function loseScreen()
-end
-
-
-
-function titleScreen()
-    drawTitle()
-
-    updateName()
-
-    if pd.buttonJustPressed(pd.kButtonA) then
-        gameState = "start"
-    end
-
-    -- reset scores by pressing Up and B at same time
-    if pd.buttonJustPressed(pd.kButtonUp) and pd.buttonJustPressed(pd.kButtonB) then
-        highestScores = {}
-        highestScoresLength = 0
-    end
-end
-
-
--- first function that is called; mainly for setup
-function start()
-    -- put the sprites on the screen
-    spriteSetup()
-
-    -- set the game state
-    gameState = "playing"
 end
