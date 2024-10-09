@@ -1,5 +1,7 @@
 -- Playdate Asteroids
 
+--------------------------- global variables/constructs ---------------------------
+
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 
@@ -21,6 +23,7 @@ local name = "AAA"
 local nameLetters = { "A", "A", "A" }
 local nameIndex = 1
 
+-- game states
 local gameState = "title"
 local states = {
     ["playing"] = gameplay,
