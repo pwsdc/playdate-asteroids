@@ -128,17 +128,41 @@ function drawBase()
     shipSprite:add()
 end
 
-function rotateShip()
-    -- following if statement is for ship rotation
-    if gameState == playing then
-        -- see https://sdk.play.date/2.5.0/Inside%20Playdate.html#f-getCrankChange
-        local crankChange = playdate.getCrankChange()
-        -- see https://sdk.play.date/2.5.0/Inside%20Playdate.html#m-graphics.sprite.getRotation
-        local currentRotation = shipSprite:getRotation()
-        -- rotate ship sprite to angle in degrees clockwise
-        -- see https://sdk.play.date/2.5.0/Inside%20Playdate.html#m-graphics.sprite.setRotation
-        shipSprite:setRotation(currentRotation + crankChange)
+function rotateShip(speed)
+    if not playdate.isCrankDocked() then
+        shipSprite:setRotation(playdate.getCrankPosition())
+    else
+        if playdate.buttonIsPressed(playdate.kButtonLeft) then
+            -- rotate ship left
+            shipSprite:setRotation(shipSprite:getRotation() - speed)
+        elseif playdate.buttonIsPressed(playdate.kButtonRight) then
+            -- rotate ship right
+            shipSprite:setRotation(shipSprite:getRotation() + speed)
+        end
     end
+end
+
+-- moves the ship in the direction it's pointing whenever the up key is pressed
+function moveShip(speed)
+    -- (directions are swapped because 0 degrees is straight up)
+    local x_travel = math.sin(math.rad(shipSprite:getRotation())) * speed
+    local y_travel = -math.cos(math.rad(shipSprite:getRotation())) * speed
+
+    -- if the up button is pressed, move the ship in the direction it's pointing
+    -- (down goes in the opposite direction)
+    if playdate.buttonIsPressed(playdate.kButtonUp) then
+        shipSprite:moveBy(x_travel, y_travel)
+    elseif playdate.buttonIsPressed(playdate.kButtonDown) then
+        shipSprite:moveBy(-x_travel, -y_travel)
+    end
+
+    -- wraps the ship around (left/right and top/bottom)
+    local x, y = shipSprite:getPosition()
+    local pad = 20
+    if x < -pad then shipSprite:moveTo(400+pad-1, y) end
+    if x > 400+pad then shipSprite:moveTo(0-pad+1, y) end
+    if y < -pad then shipSprite:moveTo(x, 240+pad-1) end
+    if y > 240+pad then shipSprite:moveTo(x, 0-pad+1) end
 end
 
 -- Loads saved data
@@ -178,5 +202,6 @@ function playdate.update()
         return -- not necessary, but allows cleaner code below (and doesn't cost much)
     end
 
-    rotateShip()
+    rotateShip(7)
+    moveShip(5)
 end
