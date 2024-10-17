@@ -5,11 +5,25 @@ local gfx <const> = playdate.graphics
 -- create ship
 local shipImage <const> = gfx.image.new("img/ship")
 local shipSprite <const> = gfx.sprite.new(shipImage)
+local shipRotation <const> = 7
+local shipSpeed <const> = 5
 
--- create projectile that ship shoots
+-- projectiles
 local projectileImage <const> = gfx.image.new(5, 5, gfx.kColorBlack)
-local projectileSprite <const> = gfx.sprite.new(projectileImage)
-local isProjectileFired = false
+local projectileSpeed <const> = shipSpeed * 1.5
+local maxProjectiles <const> = 1
+local projectiles = {}
+
+-- initialize projectile sprites
+local i = 1 -- lua prefers index start at 1, lame
+while i <= maxProjectiles do
+    projectiles[i] = {
+        sprite = gfx.sprite.new(projectileImage),
+        active = false,
+        direction = shipSprite:getRotation()
+    }
+    i = i + 1
+end
 
 -- scorekeeping
 local score = 0
@@ -183,6 +197,62 @@ function playdate.crankDocked()
     end
 end
 
+-- callback to fire projectile when leftButton is pressed down
+-- only "activates" the projectile, see updateProjectiles() for movement and checkCollisions() for collisions
+function playdate.leftButtonDown()
+    local i = 1
+    while i <= maxProjectiles do
+        local currentProjectile = projectiles[i]
+        if not currentProjectile.active then
+            activateProjectile(currentProjectile)
+            break
+        end
+        i = i + 1
+    end
+end
+
+function activateProjectile(projectile)
+    local shipX <const>, shipY <const> = shipSprite:getPosition()
+
+    projectile.direciton = shipSprite:getRotation() -- TODO: currently assigning by reference, but needs to be assigned by value. Causes the projectile to change direction when the ship does
+    projectile.active = true
+    projectile.sprite:moveTo(shipX, shipY)
+    projectile.sprite:add()
+end
+
+function deactivateProjectile(projectile)
+    projectile.active = false
+    projectile.sprite:remove()
+end
+
+function updateProjectiles()
+    local i = 1
+    while i <= maxProjectiles do
+        local currentProjectile = projectiles[i]
+        if currentProjectile.active then
+            local x_travel = math.sin(math.rad(shipSprite:getRotation())) * projectileSpeed
+            local y_travel = -math.cos(math.rad(shipSprite:getRotation())) * projectileSpeed
+            currentProjectile.sprite:moveBy(x_travel, y_travel);
+            checkCollisions(currentProjectile)
+        end
+        i = i + 1
+    end
+end
+
+function checkCollisions(projectile)
+    -- check collisions with sides
+    local screenWidth <const>, screenHeight <const> = playdate.display.getSize()
+    local x <const>, y <const> = projectile.sprite:getPosition()
+    if x <= 0 or x >= screenWidth then
+        deactivateProjectile(projectile)
+    end
+    if y <= 0 or y >= screenHeight then
+        deactivateProjectile(projectile)
+    end
+    
+    -- TODO (separate issue): check collisions with asteroids
+end
+
 function playdate.update()
     -- refresh screen
     if gameState ~= lost then
@@ -202,6 +272,7 @@ function playdate.update()
         return -- not necessary, but allows cleaner code below (and doesn't cost much)
     end
 
-    rotateShip(7)
-    moveShip(5)
+    rotateShip(shipRotation)
+    moveShip(shipSpeed)
+    updateProjectiles()
 end
