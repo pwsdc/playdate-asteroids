@@ -15,13 +15,11 @@ local maxProjectiles <const> = 1
 local projectiles = {}
 
 -- initialize projectile sprites
-local i = 1 -- lua prefers index start at 1, lame
-while i <= maxProjectiles do
+for i=1, maxProjectiles, 1 do
     projectiles[i] = {
         sprite = gfx.sprite.new(projectileImage),
         active = false
     }
-    i = i + 1
 end
 
 -- scorekeeping
@@ -212,14 +210,11 @@ end
 
 -- only "activates" the projectile, see updateProjectiles() for movement and checkCollisions() for collisions
 function fireProjectile()
-    local i = 1
-    while i <= maxProjectiles do
-        local currentProjectile = projectiles[i]
-        if not currentProjectile.active then
-            activateProjectile(currentProjectile)
+    for i,projectile in ipairs(projectiles) do
+        if not projectile.active then
+            activateProjectile(projectile)
             break
         end
-        i = i + 1
     end
 end
 
@@ -239,17 +234,14 @@ function deactivateProjectile(projectile)
 end
 
 function updateProjectiles()
-    local i = 1
-    while i <= maxProjectiles do
-        local currentProjectile = projectiles[i]
-        if currentProjectile.active then
-            local projectileDirection <const> = currentProjectile.sprite:getRotation()
+    for i,projectile in ipairs(projectiles) do
+        if projectile.active then
+            local projectileDirection <const> = projectile.sprite:getRotation()
             local x_travel <const> = math.sin(math.rad(projectileDirection)) * projectileSpeed
             local y_travel <const> = -math.cos(math.rad(projectileDirection)) * projectileSpeed
-            currentProjectile.sprite:moveBy(x_travel, y_travel);
-            checkCollisions(currentProjectile)
+            projectile.sprite:moveBy(x_travel, y_travel);
+            checkCollisions(projectile)
         end
-        i = i + 1
     end
 end
 
