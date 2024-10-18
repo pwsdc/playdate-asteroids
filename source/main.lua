@@ -19,8 +19,7 @@ local i = 1 -- lua prefers index start at 1, lame
 while i <= maxProjectiles do
     projectiles[i] = {
         sprite = gfx.sprite.new(projectileImage),
-        active = false,
-        direction = shipSprite:getRotation()
+        active = false
     }
     i = i + 1
 end
@@ -197,9 +196,22 @@ function playdate.crankDocked()
     end
 end
 
--- callback to fire projectile when leftButton is pressed down
--- only "activates" the projectile, see updateProjectiles() for movement and checkCollisions() for collisions
+-- callback to fire projectile when leftButton is pressed down if the crank IS NOT docked
 function playdate.leftButtonDown()
+    if not playdate.isCrankDocked() then
+        fireProjectile()
+    end
+end
+
+-- callback to fire projectile when aButton is pressed down if the crank IS docked
+function playdate.AButtonDown()
+    if playdate.isCrankDocked() then
+        fireProjectile()
+    end
+end
+
+-- only "activates" the projectile, see updateProjectiles() for movement and checkCollisions() for collisions
+function fireProjectile()
     local i = 1
     while i <= maxProjectiles do
         local currentProjectile = projectiles[i]
@@ -213,9 +225,10 @@ end
 
 function activateProjectile(projectile)
     local shipX <const>, shipY <const> = shipSprite:getPosition()
+    local shipRotation <const> = shipSprite:getRotation()
 
-    projectile.direciton = shipSprite:getRotation() -- TODO: currently assigning by reference, but needs to be assigned by value. Causes the projectile to change direction when the ship does
     projectile.active = true
+    projectile.sprite:setRotation(shipRotation)
     projectile.sprite:moveTo(shipX, shipY)
     projectile.sprite:add()
 end
@@ -230,8 +243,9 @@ function updateProjectiles()
     while i <= maxProjectiles do
         local currentProjectile = projectiles[i]
         if currentProjectile.active then
-            local x_travel = math.sin(math.rad(shipSprite:getRotation())) * projectileSpeed
-            local y_travel = -math.cos(math.rad(shipSprite:getRotation())) * projectileSpeed
+            local projectileDirection <const> = currentProjectile.sprite:getRotation()
+            local x_travel <const> = math.sin(math.rad(projectileDirection)) * projectileSpeed
+            local y_travel <const> = -math.cos(math.rad(projectileDirection)) * projectileSpeed
             currentProjectile.sprite:moveBy(x_travel, y_travel);
             checkCollisions(currentProjectile)
         end
