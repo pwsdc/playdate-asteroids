@@ -36,12 +36,41 @@ local nameIndex = 1
 
 -- game states
 local gameState = "title"
+-- combined state and input handler table - to prevent issues in the future of states and input handlers getting out of sync
 local states = {
-    ["playing"] = function () gameplay() end,
-    ["paused"] = function () pauseMenu() end,
-    ["lost"] = function () loseScreen() end,
-    ["title"] = function () titleScreen() end,
-    ["start"] = function () start() end,
+    ["playing"] = {
+        gameFunction = function () gameplay() end,
+        inputHandler = {
+            -- fire projectile when leftButton is pressed down if the crank IS NOT docked
+            leftButtonDown = function()
+                if not pd.isCrankDocked() then
+                    fireProjectile()
+                end
+            end,
+            -- callback to fire projectile when aButton is pressed down if the crank IS docked
+            AButtonDown = function()
+                if pd.isCrankDocked() then
+                    fireProjectile()
+                end
+            end
+        }
+    },
+    ["paused"] = {
+        gameFunction = function () pauseMenu() end,
+        inputHandler = {}
+    },
+    ["lost"] = {
+        gameFunction = function () loseScreen() end,
+        inputHandler = {}
+    },
+    ["title"] = {
+        gameFunction = function () titleScreen() end,
+        inputHandler = {}
+    },
+    ["start"] = {
+        gameFunction = function () start() end,
+        inputHandler = {}
+    },
 }
 
 
@@ -78,13 +107,21 @@ function pd.gameWillSleep()
     saveGameData()
 end
 
+function setGameState(state)
+    gameState = state
+
+    -- initial pop when setting initial state does not appear to cause issues
+    pd.inputHandlers.pop()
+    pd.inputHandlers.push(states[state].inputHandler)
+end
+
 
 
 --------------------------- update ---------------------------
 
 function pd.update()
     -- run the corresponding function of the current state
-    states[gameState]()
+    states[gameState].gameFunction()
 end
 
 
@@ -96,7 +133,7 @@ function start()
     spriteSetup()
 
     -- set the game state
-    gameState = "playing"
+    setGameState("playing")
 end
 
 function spriteSetup()
@@ -114,8 +151,9 @@ function gameplay()
     gfx.sprite.update()
 
     -- player movement
-    rotateShip(7)
-    moveShip(5)
+    rotateShip(shipRotation)
+    moveShip(shipSpeed)
+    updateProjectiles()
 end
 
 -- ship angle = crank angle when undocked,
@@ -157,6 +195,57 @@ function moveShip(speed)
     if y > 240+pad then shipSprite:moveTo(x, 0-pad+1) end
 end
 
+-- only "activates" the projectile, see updateProjectiles() for movement and checkCollisions() for collisions
+function fireProjectile()
+    for i,projectile in ipairs(projectiles) do
+        if not projectile.active then
+            activateProjectile(projectile)
+            break
+        end
+    end
+end
+
+function activateProjectile(projectile)
+    local shipX <const>, shipY <const> = shipSprite:getPosition()
+    local shipRotation <const> = shipSprite:getRotation()
+
+    projectile.active = true
+    projectile.sprite:setRotation(shipRotation)
+    projectile.sprite:moveTo(shipX, shipY)
+    projectile.sprite:add()
+end
+
+function deactivateProjectile(projectile)
+    projectile.active = false
+    projectile.sprite:remove()
+end
+
+function updateProjectiles()
+    for i,projectile in ipairs(projectiles) do
+        if projectile.active then
+            local projectileDirection <const> = projectile.sprite:getRotation()
+            local x_travel <const> = math.sin(math.rad(projectileDirection)) * projectileSpeed
+            local y_travel <const> = -math.cos(math.rad(projectileDirection)) * projectileSpeed
+            projectile.sprite:moveBy(x_travel, y_travel);
+            checkCollisions(projectile)
+        end
+    end
+end
+
+function checkCollisions(projectile)
+    -- check collisions with sides
+    local screenWidth <const>, screenHeight <const> = playdate.display.getSize()
+    local x <const>, y <const> = projectile.sprite:getPosition()
+    if x <= 0 or x >= screenWidth then
+        deactivateProjectile(projectile)
+    end
+    if y <= 0 or y >= screenHeight then
+        deactivateProjectile(projectile)
+    end
+    
+    -- TODO (separate issue): check collisions with asteroids
+end
+
 
 
 --------------------------- pause menu ---------------------------
@@ -182,7 +271,7 @@ function titleScreen()
 
     -- start the game once up is pressed
     if pd.buttonJustPressed(pd.kButtonA) then
-        gameState = "start"
+        setGameState("start")
     end
 
     -- reset scores by pressing Up and B at same time
@@ -254,36 +343,12 @@ function updateName()
 
     -- form name from character
     name = nameLetters[1] .. nameLetters[2] .. nameLetters[3]
-
-    if playdate.buttonJustPressed(playdate.kButtonA) then
-        gameState = start
-    end
-
-    -- reset scores by pressing Up and B at same time
-    if playdate.buttonJustPressed(playdate.kButtonUp) and playdate.buttonJustPressed(playdate.kButtonB) then
-        highestScores = {}
-        highestScoresLength = 0
-    end
 end
 
 function drawBase()
     -- add ship to center of screen
     shipSprite:moveTo(200, 120)
     shipSprite:add()
-end
-
-function rotateShip(speed)
-    if not playdate.isCrankDocked() then
-        shipSprite:setRotation(playdate.getCrankPosition())
-    else
-        if playdate.buttonIsPressed(playdate.kButtonLeft) then
-            -- rotate ship left
-            shipSprite:setRotation(shipSprite:getRotation() - speed)
-        elseif playdate.buttonIsPressed(playdate.kButtonRight) then
-            -- rotate ship right
-            shipSprite:setRotation(shipSprite:getRotation() + speed)
-        end
-    end
 end
 
 -- moves the ship in the direction it's pointing whenever the up key is pressed
@@ -315,103 +380,4 @@ if gameData ~= nil then
     highestScores = gameData.currentHighestScores
 else
     highestScores = {}
-end
-
--- a callback function that is called when the crank is docked
--- see https://sdk.play.date/2.5.0/Inside%20Playdate.html#c-crankDocked
-function playdate.crankDocked()
-    -- if the PlayDate crank is docked, and the state is playing, 
-    -- then reset the rotation of the ship
-    if gameState == playing then
-        shipSprite:setRotation(0)
-    end
-end
-
--- callback to fire projectile when leftButton is pressed down if the crank IS NOT docked
-function playdate.leftButtonDown()
-    if not playdate.isCrankDocked() then
-        fireProjectile()
-    end
-end
-
--- callback to fire projectile when aButton is pressed down if the crank IS docked
-function playdate.AButtonDown()
-    if playdate.isCrankDocked() then
-        fireProjectile()
-    end
-end
-
--- only "activates" the projectile, see updateProjectiles() for movement and checkCollisions() for collisions
-function fireProjectile()
-    for i,projectile in ipairs(projectiles) do
-        if not projectile.active then
-            activateProjectile(projectile)
-            break
-        end
-    end
-end
-
-function activateProjectile(projectile)
-    local shipX <const>, shipY <const> = shipSprite:getPosition()
-    local shipRotation <const> = shipSprite:getRotation()
-
-    projectile.active = true
-    projectile.sprite:setRotation(shipRotation)
-    projectile.sprite:moveTo(shipX, shipY)
-    projectile.sprite:add()
-end
-
-function deactivateProjectile(projectile)
-    projectile.active = false
-    projectile.sprite:remove()
-end
-
-function updateProjectiles()
-    for i,projectile in ipairs(projectiles) do
-        if projectile.active then
-            local projectileDirection <const> = projectile.sprite:getRotation()
-            local x_travel <const> = math.sin(math.rad(projectileDirection)) * projectileSpeed
-            local y_travel <const> = -math.cos(math.rad(projectileDirection)) * projectileSpeed
-            projectile.sprite:moveBy(x_travel, y_travel);
-            checkCollisions(projectile)
-        end
-    end
-end
-
-function checkCollisions(projectile)
-    -- check collisions with sides
-    local screenWidth <const>, screenHeight <const> = playdate.display.getSize()
-    local x <const>, y <const> = projectile.sprite:getPosition()
-    if x <= 0 or x >= screenWidth then
-        deactivateProjectile(projectile)
-    end
-    if y <= 0 or y >= screenHeight then
-        deactivateProjectile(projectile)
-    end
-    
-    -- TODO (separate issue): check collisions with asteroids
-end
-
-function playdate.update()
-    -- refresh screen
-    if gameState ~= lost then
-        gfx.sprite.update()
-    end
-    
-    -- title screen
-    if gameState == title then
-        titleScreenLogic()
-        return
-    end
-
-    if gameState == start then
-        drawBase()
-        gameState = playing
-
-        return -- not necessary, but allows cleaner code below (and doesn't cost much)
-    end
-
-    rotateShip(shipRotation)
-    moveShip(shipSpeed)
-    updateProjectiles()
 end
