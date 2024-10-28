@@ -1,6 +1,9 @@
 -- Playdate Asteroids
 
-local gfx <const> = playdate.graphics
+--------------------------- global variables/constructs ---------------------------
+
+local pd <const> = playdate
+local gfx <const> = pd.graphics
 
 -- create ship
 local shipImage <const> = gfx.image.new("img/ship")
@@ -31,11 +34,28 @@ local name = "AAA"
 local nameLetters = { "A", "A", "A" }
 local nameIndex = 1
 
--- better scheme for tracking gamestate
--- 0 for normal gameplay, 1 for pause, 2 for loss
-local playing <const>, paused <const>, lost <const>, title <const>, start <const> = 0, 1, 2, 3, 4
-local gameState = title
+-- game states
+local gameState = "title"
+local states = {
+    ["playing"] = function () gameplay() end,
+    ["paused"] = function () pauseMenu() end,
+    ["lost"] = function () loseScreen() end,
+    ["title"] = function () titleScreen() end,
+    ["start"] = function () start() end,
+}
 
+
+--------------------------- misc. playdate things ---------------------------
+
+-- Loads saved data
+local gameData = pd.datastore.read()
+if gameData ~= nil then
+    highestScores = gameData.currentHighestScores
+else
+    highestScores = {}
+end
+
+-- saves game data
 function saveGameData()
     -- save high score leaderboard
     local gameData = {
@@ -43,19 +63,133 @@ function saveGameData()
     }
 
     -- Serialize game data table into the datastore
-    playdate.datastore.write(gameData)
+    pd.datastore.write(gameData)
 end
 
 -- Automatically save game data when the player chooses
 -- to exit the game via the System Menu or Menu button
-function playdate.gameWillTerminate()
+function pd.gameWillTerminate()
     saveGameData()
 end
 
 -- Automatically save game data when the device goes
 -- to low-power sleep mode because of a low battery
-function playdate.gameWillSleep()
+function pd.gameWillSleep()
     saveGameData()
+end
+
+
+
+--------------------------- update ---------------------------
+
+function pd.update()
+    -- run the corresponding function of the current state
+    states[gameState]()
+end
+
+
+
+--------------------------- start ---------------------------
+
+function start()
+    -- put the sprites on the screen
+    spriteSetup()
+
+    -- set the game state
+    gameState = "playing"
+end
+
+function spriteSetup()
+    -- add ship to center of screen
+    shipSprite:moveTo(200, 120)
+    shipSprite:add()
+end
+
+
+
+--------------------------- gameplay ---------------------------
+
+function gameplay()
+    -- refresh the screen
+    gfx.sprite.update()
+
+    -- player movement
+    rotateShip(7)
+    moveShip(5)
+end
+
+-- ship angle = crank angle when undocked,
+-- otherwise use d-pad left/right to rotate
+function rotateShip(speed)
+    if not pd.isCrankDocked() then
+        shipSprite:setRotation(pd.getCrankPosition())
+    else
+        if pd.buttonIsPressed(pd.kButtonLeft) then
+            -- rotate ship left
+            shipSprite:setRotation(shipSprite:getRotation() - speed)
+        elseif pd.buttonIsPressed(pd.kButtonRight) then
+            -- rotate ship right
+            shipSprite:setRotation(shipSprite:getRotation() + speed)
+        end
+    end
+end
+
+-- moves the ship in the direction it's pointing whenever the up key is pressed
+function moveShip(speed)
+    -- (directions are swapped because 0 degrees is straight up)
+    local x_travel = math.sin(math.rad(shipSprite:getRotation())) * speed
+    local y_travel = -math.cos(math.rad(shipSprite:getRotation())) * speed
+
+    -- if the up button is pressed, move the ship in the direction it's pointing
+    -- (down goes in the opposite direction)
+    if pd.buttonIsPressed(pd.kButtonUp) then
+        shipSprite:moveBy(x_travel, y_travel)
+    elseif pd.buttonIsPressed(pd.kButtonDown) then
+        shipSprite:moveBy(-x_travel, -y_travel)
+    end
+
+    -- wraps the ship around (left/right and top/bottom)
+    local x, y = shipSprite:getPosition()
+    local pad = 20 -- allow the ship to be fully off screen before wrapping
+    if x < -pad then shipSprite:moveTo(400+pad-1, y) end
+    if x > 400+pad then shipSprite:moveTo(0-pad+1, y) end
+    if y < -pad then shipSprite:moveTo(x, 240+pad-1) end
+    if y > 240+pad then shipSprite:moveTo(x, 0-pad+1) end
+end
+
+
+
+--------------------------- pause menu ---------------------------
+
+function pauseMenu()
+end
+
+
+
+--------------------------- lose screen ---------------------------
+
+function loseScreen()
+end
+
+
+
+--------------------------- title screen ---------------------------
+
+function titleScreen()
+    drawTitle()
+
+    updateName()
+
+    -- start the game once up is pressed
+    if pd.buttonJustPressed(pd.kButtonA) then
+        gameState = "start"
+    end
+
+    -- reset scores by pressing Up and B at same time
+    if pd.buttonJustPressed(pd.kButtonUp) and pd.buttonJustPressed(pd.kButtonB) then
+        highestScores = {}
+        highestScoresLength = 0
+    end
 end
 
 function drawTitle()
@@ -82,6 +216,7 @@ function drawTitle()
     gfx.drawText("Press A to Start", 144, 220)
 end
 
+-- changes a specific letter in the player's 3-character name
 function changeLetter(num, forwards)
     -- whether to increment or decrement the character
     local changeBy = -1
@@ -100,22 +235,20 @@ function changeLetter(num, forwards)
     end
 end
 
--- displays title screen, lets player change name, lets players tart game
-function titleScreenLogic()
-    drawTitle()
-
+-- allows the player to move between and change each name character
+function updateName()
     -- switch between char positions in name
-    if playdate.buttonJustPressed(playdate.kButtonLeft) and nameIndex > 1 then
+    if pd.buttonJustPressed(pd.kButtonLeft) and nameIndex > 1 then
         nameIndex -= 1
     end
-    if playdate.buttonJustPressed(playdate.kButtonRight) and nameIndex < 3 then
+    if pd.buttonJustPressed(pd.kButtonRight) and nameIndex < 3 then
         nameIndex += 1
     end
 
     -- update the actual character
-    if playdate.buttonJustPressed(playdate.kButtonUp) then
+    if pd.buttonJustPressed(pd.kButtonUp) then
         changeLetter(nameIndex, true)
-    elseif playdate.buttonJustPressed(playdate.kButtonDown) then
+    elseif pd.buttonJustPressed(pd.kButtonDown) then
         changeLetter(nameIndex, false)
     end
 
