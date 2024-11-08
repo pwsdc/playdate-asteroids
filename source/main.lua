@@ -8,11 +8,22 @@ local gfx <const> = pd.graphics
 -- create ship
 local shipImage <const> = gfx.image.new("img/ship")
 local shipSprite <const> = gfx.sprite.new(shipImage)
+local shipRotation <const> = 7
+local shipSpeed <const> = 5
 
--- create projectile that ship shoots
+-- projectiles
 local projectileImage <const> = gfx.image.new(5, 5, gfx.kColorBlack)
-local projectileSprite <const> = gfx.sprite.new(projectileImage)
-local isProjectileFired = false
+local projectileSpeed <const> = shipSpeed * 1.5
+local maxProjectiles <const> = 1
+local projectiles = {}
+
+-- initialize projectile sprites
+for i=1, maxProjectiles, 1 do
+    projectiles[i] = {
+        sprite = gfx.sprite.new(projectileImage),
+        active = false
+    }
+end
 
 -- scorekeeping
 local score = 0
@@ -25,12 +36,41 @@ local nameIndex = 1
 
 -- game states
 local gameState = "title"
+-- combined state and input handler table - to prevent issues in the future of states and input handlers getting out of sync
 local states = {
-    ["playing"] = function () gameplay() end,
-    ["paused"] = function () pauseMenu() end,
-    ["lost"] = function () loseScreen() end,
-    ["title"] = function () titleScreen() end,
-    ["start"] = function () start() end,
+    ["playing"] = {
+        gameFunction = function () gameplay() end,
+        inputHandler = {
+            -- fire projectile when leftButton is pressed down if the crank IS NOT docked
+            leftButtonDown = function()
+                if not pd.isCrankDocked() then
+                    fireProjectile()
+                end
+            end,
+            -- callback to fire projectile when aButton is pressed down if the crank IS docked
+            AButtonDown = function()
+                if pd.isCrankDocked() then
+                    fireProjectile()
+                end
+            end
+        }
+    },
+    ["paused"] = {
+        gameFunction = function () pauseMenu() end,
+        inputHandler = {}
+    },
+    ["lost"] = {
+        gameFunction = function () loseScreen() end,
+        inputHandler = {}
+    },
+    ["title"] = {
+        gameFunction = function () titleScreen() end,
+        inputHandler = {}
+    },
+    ["start"] = {
+        gameFunction = function () start() end,
+        inputHandler = {}
+    },
 }
 
 
@@ -67,13 +107,21 @@ function pd.gameWillSleep()
     saveGameData()
 end
 
+function setGameState(state)
+    gameState = state
+
+    -- initial pop when setting initial state does not appear to cause issues
+    pd.inputHandlers.pop()
+    pd.inputHandlers.push(states[state].inputHandler)
+end
+
 
 
 --------------------------- update ---------------------------
 
 function pd.update()
     -- run the corresponding function of the current state
-    states[gameState]()
+    states[gameState].gameFunction()
 end
 
 
@@ -85,7 +133,7 @@ function start()
     spriteSetup()
 
     -- set the game state
-    gameState = "playing"
+    setGameState("playing")
 end
 
 function spriteSetup()
@@ -103,8 +151,9 @@ function gameplay()
     gfx.sprite.update()
 
     -- player movement
-    rotateShip(7)
-    moveShip(5)
+    rotateShip(shipRotation)
+    moveShip(shipSpeed)
+    updateProjectiles()
 end
 
 -- ship angle = crank angle when undocked,
@@ -146,6 +195,57 @@ function moveShip(speed)
     if y > 240+pad then shipSprite:moveTo(x, 0-pad+1) end
 end
 
+-- only "activates" the projectile, see updateProjectiles() for movement and checkCollisions() for collisions
+function fireProjectile()
+    for i,projectile in ipairs(projectiles) do
+        if not projectile.active then
+            activateProjectile(projectile)
+            break
+        end
+    end
+end
+
+function activateProjectile(projectile)
+    local shipX <const>, shipY <const> = shipSprite:getPosition()
+    local shipRotation <const> = shipSprite:getRotation()
+
+    projectile.active = true
+    projectile.sprite:setRotation(shipRotation)
+    projectile.sprite:moveTo(shipX, shipY)
+    projectile.sprite:add()
+end
+
+function deactivateProjectile(projectile)
+    projectile.active = false
+    projectile.sprite:remove()
+end
+
+function updateProjectiles()
+    for i,projectile in ipairs(projectiles) do
+        if projectile.active then
+            local projectileDirection <const> = projectile.sprite:getRotation()
+            local x_travel <const> = math.sin(math.rad(projectileDirection)) * projectileSpeed
+            local y_travel <const> = -math.cos(math.rad(projectileDirection)) * projectileSpeed
+            projectile.sprite:moveBy(x_travel, y_travel);
+            checkCollisions(projectile)
+        end
+    end
+end
+
+function checkCollisions(projectile)
+    -- check collisions with sides
+    local screenWidth <const>, screenHeight <const> = playdate.display.getSize()
+    local x <const>, y <const> = projectile.sprite:getPosition()
+    if x <= 0 or x >= screenWidth then
+        deactivateProjectile(projectile)
+    end
+    if y <= 0 or y >= screenHeight then
+        deactivateProjectile(projectile)
+    end
+    
+    -- TODO (separate issue): check collisions with asteroids
+end
+
 
 
 --------------------------- pause menu ---------------------------
@@ -171,7 +271,7 @@ function titleScreen()
 
     -- start the game once up is pressed
     if pd.buttonJustPressed(pd.kButtonA) then
-        gameState = "start"
+        setGameState("start")
     end
 
     -- reset scores by pressing Up and B at same time
@@ -243,4 +343,41 @@ function updateName()
 
     -- form name from character
     name = nameLetters[1] .. nameLetters[2] .. nameLetters[3]
+end
+
+function drawBase()
+    -- add ship to center of screen
+    shipSprite:moveTo(200, 120)
+    shipSprite:add()
+end
+
+-- moves the ship in the direction it's pointing whenever the up key is pressed
+function moveShip(speed)
+    -- (directions are swapped because 0 degrees is straight up)
+    local x_travel = math.sin(math.rad(shipSprite:getRotation())) * speed
+    local y_travel = -math.cos(math.rad(shipSprite:getRotation())) * speed
+
+    -- if the up button is pressed, move the ship in the direction it's pointing
+    -- (down goes in the opposite direction)
+    if playdate.buttonIsPressed(playdate.kButtonUp) then
+        shipSprite:moveBy(x_travel, y_travel)
+    elseif playdate.buttonIsPressed(playdate.kButtonDown) then
+        shipSprite:moveBy(-x_travel, -y_travel)
+    end
+
+    -- wraps the ship around (left/right and top/bottom)
+    local x, y = shipSprite:getPosition()
+    local pad = 20
+    if x < -pad then shipSprite:moveTo(400+pad-1, y) end
+    if x > 400+pad then shipSprite:moveTo(0-pad+1, y) end
+    if y < -pad then shipSprite:moveTo(x, 240+pad-1) end
+    if y > 240+pad then shipSprite:moveTo(x, 0-pad+1) end
+end
+
+-- Loads saved data
+local gameData = playdate.datastore.read()
+if gameData ~= nil then
+    highestScores = gameData.currentHighestScores
+else
+    highestScores = {}
 end
